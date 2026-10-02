@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# easyplay 小遊戲
 
-## Getting Started
+給長輩玩的四個小遊戲：大字、大按鈕、畫面滿版、可以連續點不用等動畫。安卓平板、iPad、手機、電腦都能玩，也能「加到主畫面」當 App 用（沒網路也能玩）。
 
-First, run the development server:
+| 遊戲 | 玩法 | 難度怎麼往上 |
+|---|---|---|
+| **消消樂** | 點一下一樣顏色、連在一起的方塊就消掉，**全部消完**才過關。一次消越多分數越多（n × n × 5 分），全部消光再加 1000 分。 | 第 1 關 2 種顏色 → 第 2 關 3 種 → 之後 4 種、方塊變多。每一盤開局前都會先確認「一定能全部消完」。 |
+| **翻牌配對** | 先看一下水果位置，再一次翻兩張，配對成功的牌會消失。可以「偷看一下」。 | 3 對 → 4 對 → 6 對 → … → 12 對 |
+| **數字點點** | 數字泡泡在畫面上飄，照 1、2、3… 的順序點破（練專注力）。 | 泡泡變多、變快；第 4 關起限時；第 5 關起穿插會轉的「輪盤」，後面內外兩圈反方向轉。 |
+| **打地鼠** | 時間內打到目標分數就過關。金色地鼠 +2 分，小白兔不能打（-1 分）。 | 洞變多、地鼠更快、一次出好幾隻；第 4 關起出現小白兔。 |
+
+## 怎麼開
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打開 http://localhost:3000 。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 放到網路上給平板玩
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+這是純靜態網站，`npm run build` 之後 `out/` 資料夾整個放到任何靜態主機都可以（Vercel、Netlify、Cloudflare Pages、GitHub Pages）。
 
-## Learn More
+- 如果網址在子路徑（例如 GitHub Pages 的 `https://帳號.github.io/easyplay/`），建置時加上 `NEXT_PUBLIC_BASE_PATH=/easyplay`。
+- 在平板的 Chrome 打開網址 → 選單 →「加到主畫面」，就會像 App 一樣全螢幕、離線也能玩。
 
-To learn more about Next.js, take a look at the following resources:
+## 想調難度
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+每個遊戲最上面都有一張關卡表，直接改數字就好：
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- 消消樂：`src/games/pop/logic.ts` 的 `LEVELS`
+- 翻牌配對：`src/games/memory/MemoryGame.tsx` 的 `PAIRS`
+- 數字點點：`src/games/numbers/NumbersGame.tsx` 的 `LEVELS`
+- 打地鼠：`src/games/mole/MoleGame.tsx` 的 `LEVELS`
 
-## Deploy on Vercel
+## 結構
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/
+  app/              頁面（首頁、四個遊戲）、全站樣式、App 設定
+  components/       共用元件：遊戲外框、說明卡、過關卡、首頁、插圖
+  games/<遊戲>/      每個遊戲的規則、畫面、示範動畫
+  lib/              聲音（即時合成）、進度儲存、特效、共用 hooks
+public/sw.js        離線用的 service worker
+tools/make-icons.py 產生 App 圖示
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 設計重點
+
+- 顏色之外搭配光澤和厚度，方塊看起來像一顆顆軟糖；字體用思源黑體（台灣字形）＋ Outfit 數字。
+- 點下去立刻有反應，動畫在背後跑，可以連續點。
+- 不會「輸掉」：卡住或時間到都能馬上再試一次，也隨時能從第 1 關重新開始。
+- 進度存在裝置上（localStorage），聲音可以關，還有「唸給我聽」語音說明。

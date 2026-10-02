@@ -1,0 +1,151 @@
+/* 泡泡飄的區域：整個遊戲區 */
+.field { position: absolute; inset: 10px 0 0; overflow: hidden; border-radius: 30px; }
+
+.bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  border-radius: 50%;
+  touch-action: none;
+  will-change: transform;
+}
+.ball {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(60% 50% at 32% 24%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%),
+    radial-gradient(circle at 50% 120%, var(--c-lo), var(--c) 55%, var(--c-hi) 100%);
+  box-shadow: inset 0 -0.08em 0.12em rgba(0, 0, 0, 0.12), 0 0.08em 0.2em -0.04em rgba(29, 32, 51, 0.35);
+  color: var(--ink);
+  font-family: var(--font-num);
+  font-weight: 800;
+  font-size: calc(var(--r) * 0.95);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  animation: appear 0.6s var(--spring) both;
+}
+.ball::after {
+  content: '';
+  position: absolute;
+  left: 20%;
+  top: 14%;
+  width: 26%;
+  height: 14%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.65);
+  transform: rotate(-30deg);
+}
+
+/* 點對了：泡泡破掉 */
+.popped { pointer-events: none; }
+.popped .ball { animation: burst-out 0.35s cubic-bezier(0.3, 0, 0.7, 1) forwards; }
+
+/* 提示：外圈發亮 */
+.hint .ball { box-shadow: 0 0 0 0.06em #fff, 0 0 0 0.12em var(--c), 0 0 0.4em 0.1em var(--c); animation: hint 1s ease-in-out infinite; }
+
+@keyframes appear { from { transform: scale(0); } }
+@keyframes burst-out { 0% { transform: scale(1); opacity: 1; } 40% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+@keyframes hint { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+/* 輪盤：數字繞著轉的圓盤 */
+.disc {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 18%, transparent 18.5%),
+    repeating-conic-gradient(rgba(255, 255, 255, 0.62) 0 15deg, rgba(255, 255, 255, 0.32) 15deg 30deg);
+  box-shadow: var(--sh-2), inset 0 0 0 8px rgba(255, 255, 255, 0.85);
+  transform: translate(-50%, -50%);
+  animation: disc-in 0.7s var(--spring-soft) both;
+}
+.discInner {
+  background: repeating-conic-gradient(color-mix(in srgb, var(--a) 18%, white) 0 20deg, rgba(255, 255, 255, 0.85) 20deg 40deg);
+  box-shadow: 0 10px 30px -12px rgba(29, 32, 51, 0.35), inset 0 0 0 6px rgba(255, 255, 255, 0.9);
+}
+@keyframes disc-in { from { opacity: 0; scale: 0.8; } }
+
+/* 倒數時間 */
+.clock { display: inline-flex; align-items: center; gap: 6px; padding: 0 16px 0 14px; height: 52px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); font-size: 20px; font-weight: 700; white-space: nowrap; }
+.clock svg { width: 28px; height: 28px; }
+.clock b { font-family: var(--font-num); font-weight: 800; font-size: 30px; color: var(--ink); font-variant-numeric: tabular-nums; min-width: 1.3em; text-align: right; }
+.clockLow { background: #ffe3de; color: #c2392d; animation: tick 1s ease-in-out infinite; }
+.clockLow b { color: #c2392d; }
+@keyframes tick { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.timeoutBadge { display: grid; place-items: center; width: 130px; height: 130px; border-radius: 50%; background: #fff; color: var(--a-ink); box-shadow: var(--sh-2); animation: disc-in 0.7s var(--spring) both; }
+.timeoutBadge svg { width: 72px; height: 72px; }
+
+/* ---------- 資訊列：大大的「請找 3」 ---------- */
+.hud { gap: 16px; padding: 0 10px 0 28px; }
+.seekLabel { font-size: 26px; font-weight: 900; letter-spacing: 0.08em; color: var(--ink); }
+.seek {
+  display: grid;
+  place-items: center;
+  min-width: 64px;
+  height: 58px;
+  padding: 0 14px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, var(--a-hi) -30%, var(--a) 60%);
+  color: #fff;
+  font-family: var(--font-num);
+  font-weight: 800;
+  font-size: 42px;
+  line-height: 1;
+  box-shadow: inset 0 -3px 0 var(--a-lo), 0 8px 16px -8px var(--a-lo);
+  animation: seek-in 0.55s var(--spring);
+}
+.seek svg { width: 34px; height: 34px; }
+.count { margin-left: 6px; padding-right: 14px; font-size: 21px; font-weight: 700; color: var(--ink-3); white-space: nowrap; }
+.count b { display: inline-block; font-family: var(--font-num); font-weight: 800; font-size: 30px; color: var(--ink); animation: bump 0.45s var(--spring); }
+@keyframes seek-in { 0% { transform: rotateX(80deg) scale(0.7); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.14); } 100% { transform: scale(1); } }
+
+@media (max-width: 600px) {
+  .hud { padding-left: 20px; gap: 10px; }
+  .clock { height: 46px; padding: 0 12px 0 10px; font-size: 0; gap: 4px; }
+  .clock b { font-size: 26px; }
+  .seekLabel { font-size: 22px; }
+  .seek { height: 50px; font-size: 36px; }
+  .count { font-size: 18px; }
+  .count b { font-size: 26px; }
+}
+
+/* ---------- 說明裡的示範動畫 ---------- */
+.demo { position: relative; width: 4.2em; height: 2.6em; }
+.dball {
+  position: absolute;
+  width: 1.3em;
+  height: 1.3em;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  font-family: var(--font-num);
+  font-weight: 800;
+  font-size: 1em;
+  background: radial-gradient(60% 50% at 32% 24%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%), radial-gradient(circle at 50% 120%, var(--c-lo), var(--c) 55%, var(--c-hi));
+  box-shadow: 0 0.06em 0.16em -0.04em rgba(29, 32, 51, 0.35);
+}
+.d1 { left: 1.45em; top: 0.9em; animation: drift-a 4s ease-in-out infinite, tap-pop 4s var(--out) infinite; }
+.d2 { left: 0; top: 0.1em; animation: drift-b 4s ease-in-out infinite; }
+.d3 { left: 2.9em; top: 0.2em; animation: drift-c 4s ease-in-out infinite; }
+.demoHand { left: 1.75em; top: 1.5em; animation: hand-num 4s var(--out) infinite; }
+@keyframes drift-a { 0%, 100% { translate: 0 0; } 50% { translate: 0.1em -0.15em; } }
+@keyframes drift-b { 0%, 100% { translate: 0 0; } 50% { translate: 0.25em 0.3em; } }
+@keyframes drift-c { 0%, 100% { translate: 0 0; } 50% { translate: -0.2em 0.35em; } }
+@keyframes tap-pop { 0%, 38% { transform: scale(1); opacity: 1; } 44% { transform: scale(1.25); opacity: 1; } 52% { transform: scale(1.6); opacity: 0; } 85% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes hand-num {
+  0% { opacity: 0; transform: translate(0.8em, 0.9em); }
+  14% { opacity: 1; }
+  32% { transform: translate(0, 0) scale(1); }
+  38% { transform: translate(0, 0) scale(0.84); }
+  46% { transform: translate(0, 0) scale(1); }
+  64% { opacity: 1; transform: translate(0.5em, 0.7em); }
+  76%, 100% { opacity: 0; transform: translate(0.8em, 0.9em); }
+}
