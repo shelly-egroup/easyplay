@@ -13,23 +13,23 @@ import { read, write } from '@/lib/store';
 import s from './hoops.module.css';
 
 // 街頭跳投（比分數）：夜晚的街頭球場，側面看過去。
-// 每點一下，球就往籃框的方向跳；球撞到牆、天花板、地板、籃板都會反彈，從哪裡掉下來就從哪裡繼續。
-// 投進後籃框會滑到新的位置和高度。連進 3 球變火焰球（×2）、6 球藍火（×3）；投進就重新計時，時間到才結束。
+// 每點一下，球就往「目前前進的方向」跳（不會自動轉向籃框）；撞到牆、籃板才會反彈掉頭，從哪裡掉下來就從哪裡繼續。
+// 投進後籃框會在隨機的新位置出現（跟球在哪裡無關）。連進 3 球變火焰球（×2）、6 球藍火（×3）；投進就重新計時，時間到才結束。
 
-/** 投進幾球之後變多難：rim 籃框寬（幾個球半徑）、amp 籃框上下晃動、clock 每球幾秒、far 新籃框離球多遠（畫面寬的比例）、h 籃框高度範圍 */
+/** 投進幾球之後變多難：rim 籃框寬（幾個球半徑）、amp 籃框上下晃動、clock 每球幾秒、h 籃框高度範圍（畫面比例） */
 const TIERS = [
-  { at: 0, rim: 4.6, amp: 0, clock: 10, far: 0.3, h: [0.4, 0.52] },
-  { at: 4, rim: 4.2, amp: 0, clock: 10, far: 0.34, h: [0.32, 0.58] },
-  { at: 9, rim: 3.8, amp: 0, clock: 9, far: 0.38, h: [0.26, 0.62] },
-  { at: 14, rim: 3.5, amp: 0.06, clock: 8, far: 0.4, h: [0.3, 0.58] },
-  { at: 22, rim: 3.2, amp: 0.09, clock: 7, far: 0.44, h: [0.28, 0.6] },
-  { at: 32, rim: 3.0, amp: 0.11, clock: 6, far: 0.46, h: [0.26, 0.62] },
+  { at: 0, rim: 4.6, amp: 0, clock: 10, h: [0.4, 0.52] },
+  { at: 4, rim: 4.2, amp: 0, clock: 10, h: [0.32, 0.58] },
+  { at: 9, rim: 3.8, amp: 0, clock: 9, h: [0.26, 0.62] },
+  { at: 14, rim: 3.5, amp: 0.06, clock: 8, h: [0.3, 0.58] },
+  { at: 22, rim: 3.2, amp: 0.09, clock: 7, h: [0.28, 0.6] },
+  { at: 32, rim: 3.0, amp: 0.11, clock: 6, h: [0.26, 0.62] },
 ];
 const tierFor = (makes: number) => [...TIERS].reverse().find((t) => makes >= t.at)!;
 const multFor = (streak: number) => (streak >= 6 ? 3 : streak >= 3 ? 2 : 1);
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
-type Hoop = { x: number; base: number; y: number; w: number; amp: number; phase: number; touched: boolean; tx: number; tbase: number; moving: boolean };
+type Hoop = { x: number; base: number; y: number; w: number; amp: number; phase: number; touched: boolean; alpha: number; next: { x: number; base: number; w: number; amp: number } | null };
 type Spark = { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number };
 type Building = { x: number; w: number; h: number; windows: [number, number][] };
 type Phase = 'intro' | 'play' | 'over';
@@ -58,7 +58,9 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
   const phaseRef = useRef<Phase>('intro');
   const world = useRef({
     ball: { x: 0, y: 0, vx: 0, vy: 0, rot: 0 },
-    hoop: { x: 0, base: 0, y: 0, w: 0, amp: 0, phase: 0, touched: false, tx: 0, tbase: 0, moving: false } as Hoop,
+    /** 球往哪邊前進：1 往右、-1 往左（撞牆、撞籃板才會掉頭） */
+    facing: 1,
+    hoop: { x: 0, base: 0, y: 0, w: 0, amp: 0, phase: 0, touched: false, alpha: 1, next: null } as Hoop,
     /** 剛投進後的一小段時間不重複計分 */
     cooldown: 0,
     /** 球是不是升到過籃框上面（用來判斷「在籃框附近沒投進」） */
@@ -84,16 +86,16 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
     return { w, h, R, floor: h * 0.86, g: h * 2.4, jump: h * 0.86, boost: Math.max(130, w * 0.1), maxVx: Math.max(240, w * 0.36) };
   };
 
-  // 投進後籃框滑到新的位置：離球有一段距離，左右都可能，高高低低
+  // 投進後籃框換到隨機的新位置（跟球在哪裡無關）：先淡出，再在新位置淡入
   const moveHoop = () => {
     const d = dims();
     const st = world.current;
     const tier = tierFor(st.makes);
     const margin = d.R * 5;
-    const far = tier.far * d.w;
-    const options = [st.ball.x - far - rand(0, d.w * 0.15), st.ball.x + far + rand(0, d.w * 0.15)].filter((x) => x > margin && x < d.w - margin);
-    const tx = options.length ? options[Math.floor(Math.random() * options.length)] : d.w / 2;
-    Object.assign(st.hoop, { tx, tbase: d.h * rand(tier.h[0], tier.h[1]), w: tier.rim * d.R, amp: tier.amp * d.h, moving: true, touched: false });
+    let x = rand(margin, d.w - margin);
+    // 不要出現在跟原本差不多的地方
+    for (let i = 0; i < 8 && Math.abs(x - st.hoop.x) < d.w * 0.2; i++) x = rand(margin, d.w - margin);
+    st.hoop.next = { x, base: d.h * rand(tier.h[0], tier.h[1]), w: tier.rim * d.R, amp: tier.amp * d.h };
   };
 
   const start = () => {
@@ -122,8 +124,9 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
     }
     // 第一球：籃框在右邊、中間的高度，先讓長輩投進一次
     const base = d.h * 0.48;
-    st.hoop = { x: d.w * 0.68, base, y: base, w: TIERS[0].rim * d.R, amp: 0, phase: 0, touched: false, tx: d.w * 0.68, tbase: base, moving: false };
+    st.hoop = { x: d.w * 0.68, base, y: base, w: TIERS[0].rim * d.R, amp: 0, phase: 0, touched: false, alpha: 1, next: null };
     st.ball = { x: d.w * 0.16, y: d.floor - d.R, vx: 0, vy: 0, rot: 0 };
+    st.facing = 1;
     setScore(0);
     setStreak(0);
     setSeconds(10);
@@ -152,11 +155,11 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
     const st = world.current;
     const d = dims();
     const b = st.ball;
-    // 往籃框的方向跳：球在左邊就往右、在右邊就往左
-    const dx = st.hoop.x - b.x;
-    const dir = Math.abs(dx) < d.R * 0.6 ? Math.sign(b.vx) || 1 : Math.sign(dx);
+    // 往目前前進的方向跳（不會自動轉向籃框）
+    const dir = Math.abs(b.vx) > 20 ? Math.sign(b.vx) : st.facing;
+    st.facing = dir;
     b.vy = -d.jump;
-    b.vx = dir * Math.min(d.maxVx, Math.max(dir * b.vx, 0) + d.boost);
+    b.vx = dir * Math.min(d.maxVx, Math.abs(b.vx) * 0.6 + d.boost);
     if (!st.tapped) {
       st.tapped = true;
       setStarted(true);
@@ -227,13 +230,16 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
       st.t += dt;
 
       st.cooldown = Math.max(0, st.cooldown - dt);
-      // 籃框慢慢滑到新位置（滑的時候不會撞到球）
-      if (hoop.moving) {
-        const k = 1 - Math.exp(-dt * 5);
-        hoop.x += (hoop.tx - hoop.x) * k;
-        hoop.base += (hoop.tbase - hoop.base) * k;
-        if (Math.abs(hoop.tx - hoop.x) < 1 && Math.abs(hoop.tbase - hoop.base) < 1) hoop.moving = false;
+      // 籃框換位置：舊的淡出 → 在新位置淡入（換的時候不會撞到球）
+      if (hoop.next) {
+        hoop.alpha = Math.max(0, hoop.alpha - dt * 4);
+        if (hoop.alpha <= 0) {
+          Object.assign(hoop, hoop.next, { y: hoop.next.base, next: null, touched: false, phase: Math.random() * 6 });
+        }
+      } else if (hoop.alpha < 1) {
+        hoop.alpha = Math.min(1, hoop.alpha + dt * 3);
       }
+      const moving = !!hoop.next || hoop.alpha < 1;
 
       // 球的物理
       const prevY = b.y;
@@ -254,10 +260,12 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
       if (b.x < d.R) {
         b.x = d.R;
         b.vx = Math.abs(b.vx) * 0.65;
+        st.facing = 1;
       }
       if (b.x > d.w - d.R) {
         b.x = d.w - d.R;
         b.vx = -Math.abs(b.vx) * 0.65;
+        st.facing = -1;
       }
 
       // 籃框（後面的關卡會上下動）
@@ -265,7 +273,7 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
       const left = hoop.x - hoop.w / 2;
       const right = hoop.x + hoop.w / 2;
       const side = hoop.x >= d.w / 2 ? 1 : -1;
-      for (const tipX of hoop.moving ? [] : [left, right]) {
+      for (const tipX of moving ? [] : [left, right]) {
         const dx = b.x - tipX;
         const dy = b.y - hoop.y;
         const dist = Math.hypot(dx, dy);
@@ -286,18 +294,20 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
       // 籃板在外側（籃框在右半邊，籃板就在右邊）
       const boardFace = side > 0 ? right + d.R * 0.15 : left - d.R * 0.15;
       const inBoardY = b.y > hoop.y - d.R * 3.4 && b.y < hoop.y + d.R * 0.5;
-      if (!hoop.moving && inBoardY) {
+      if (!moving && inBoardY) {
         if (side > 0 && b.vx > 0 && b.x + d.R > boardFace && b.x < boardFace + d.R) {
           b.x = boardFace - d.R;
           b.vx = -b.vx * 0.5;
+          st.facing = -1;
           hoop.touched = true;
         } else if (side < 0 && b.vx < 0 && b.x - d.R < boardFace && b.x > boardFace - d.R) {
           b.x = boardFace + d.R;
           b.vx = -b.vx * 0.5;
+          st.facing = 1;
           hoop.touched = true;
         }
       }
-      if (!hoop.moving && st.cooldown <= 0) {
+      if (!moving && st.cooldown <= 0) {
         if (b.y < hoop.y - d.R) st.above = true;
         if (b.vy > 0 && prevY < hoop.y && b.y >= hoop.y && b.x > left + d.R * 0.45 && b.x < right - d.R * 0.45) made();
         // 在籃框附近掉下去沒進，才算失手（離很遠只是在移動）
@@ -366,7 +376,7 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
     >
       <div className={s.street}>
         <canvas ref={canvasEl} className={s.streetCanvas} onPointerDown={tap} aria-label="街頭球場，點一下讓球往前跳" />
-        {phase === 'play' && !started && <div className={s.tapHint}>點一下，球會往籃框跳 👆</div>}
+        {phase === 'play' && !started && <div className={s.tapHint}>點一下，球會往前跳 👆</div>}
       </div>
       {praise.node}
 
@@ -376,12 +386,12 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
         art={<StreetArt />}
         text={
           <>
-            每點一下，球就 <b>往籃框跳</b>。
+            每點一下，球就 <b>往前跳</b>，撞到牆會彈回來。
             <br />
             讓球從上面掉進籃框！投進後籃框會換位置。
           </>
         }
-        say="每點一下，球就會往籃框的方向跳。讓球從上面掉進籃框就得分，空心進球分數更高。球撞到牆壁或籃板會彈回來。投進以後籃框會換一個位置。連續投進會變成火焰球。投進會重新計時，時間到就結束。"
+        say="每點一下，球就會往前跳，撞到牆壁會彈回來換方向。讓球從上面掉進籃框就得分，空心進球分數更高。球撞到牆壁或籃板會彈回來。投進以後籃框會換一個位置。連續投進會變成火焰球。投進會重新計時，時間到就結束。"
         tag={best > 0 ? `最高 ${best} 分` : undefined}
         extra={modeSwitch}
         onStart={start}
@@ -490,6 +500,7 @@ function draw(ctx: CanvasRenderingContext2D, dpr: number, d: Dims, st: World) {
 
   // 柱子、籃板（緊貼在籃框外側）、後面的框
   const hoop = st.hoop;
+  ctx.globalAlpha = hoop.alpha;
   const side = hoop.x >= w / 2 ? 1 : -1;
   const rimEdge = hoop.x + (side * hoop.w) / 2;
   const boardW = R * 0.42;
@@ -522,6 +533,7 @@ function draw(ctx: CanvasRenderingContext2D, dpr: number, d: Dims, st: World) {
   ctx.beginPath();
   ctx.ellipse(hoop.x, hoop.y, hoop.w / 2, R * 0.32, 0, Math.PI, Math.PI * 2);
   ctx.stroke();
+  ctx.globalAlpha = 1;
 
   // 火花與火焰尾巴
   for (const p of st.sparks) {
@@ -575,6 +587,7 @@ function draw(ctx: CanvasRenderingContext2D, dpr: number, d: Dims, st: World) {
   ctx.globalAlpha = 1;
 
   // 籃網與前面的框
+  ctx.globalAlpha = hoop.alpha;
   const half = hoop.w / 2;
   const depth = R * 1.9;
   ctx.strokeStyle = 'rgba(255,255,255,0.85)';
@@ -597,6 +610,7 @@ function draw(ctx: CanvasRenderingContext2D, dpr: number, d: Dims, st: World) {
   ctx.beginPath();
   ctx.ellipse(hoop.x, hoop.y, half, R * 0.32, 0, 0, Math.PI);
   ctx.stroke();
+  ctx.globalAlpha = 1;
 }
 
 // 說明／結束畫面的小插圖（夜晚球場）
