@@ -124,12 +124,12 @@ function SkyIcon({ night }: { night: boolean }) {
 }
 
 // 比分數的遊戲（沒有關卡）顯示最高分；有關卡的顯示玩到第幾關和累積總分
-const SCORE_ONLY: Partial<Record<GameId, string>> = { hoops: 'hoops.best', bricks: 'bricks.best' };
+const SCORE_ONLY: Partial<Record<GameId, string>> = { hoops: 'hoops.best', bricks: 'bricks.best.v2' };
 
 function GameCard({ game, index }: { game: GameMeta; index: number }) {
   const level = useSavedLevel(game.id);
   const bestKey = SCORE_ONLY[game.id];
-  const total = useStoredNumber(bestKey ?? `${game.id}.total`);
+  const total = useStoredNumber(bestKey ?? `${game.id}.v2.total`);
   const label = bestKey
     ? total
       ? `最高 ${total.toLocaleString()} 分`

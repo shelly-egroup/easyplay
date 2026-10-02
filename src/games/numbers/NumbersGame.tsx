@@ -5,7 +5,7 @@ import GameShell from '@/components/GameShell';
 import { CheckIcon, ClockIcon } from '@/components/icons';
 import { IntroSheet, Sheet, WinSheet } from '@/components/ui';
 import { GAME } from '@/games/registry';
-import { burst, floatText, prefersReducedMotion, shake } from '@/lib/fx';
+import { burst, prefersReducedMotion, shake } from '@/lib/fx';
 import { pick, shuffle, useElementSize, usePageVisible, useTimers } from '@/lib/hooks';
 import { useGoHome } from '@/lib/nav';
 import { CANDY } from '@/lib/palette';
@@ -43,9 +43,12 @@ function levelConfig(n: number): NumLevel {
     : { mode: 'wheel', count: 17, rings: [10, 7], spin: Math.min(40, 22 + extra * 2), time: 60 };
 }
 
-// 分數（會一關一關累積）：每點對一個 5×關卡；過關 20×關卡；限時關卡剩幾秒再加幾秒×關卡
-const HIT_POINTS = 5;
-const CLEAR_POINTS = 20;
+// 分數（會一關一關累積）：越快點完分數越高。
+// 每關有個參考時間（每顆約 2 秒）；過關得「顆數 × 關卡」，比參考時間快幾秒就再加幾秒 × 關卡
+const PAR_SECONDS = 2;
+/** 從開始到現在過了幾秒（扣掉切到背景的時間） */
+const secondsSince = (startedAt: number, paused: number) => (performance.now() - startedAt) / 1000 - paused;
+const speedPoints = (count: number, used: number, level: number) => (count + Math.max(0, Math.ceil(count * PAR_SECONDS - used))) * level;
 
 type Bubble = { n: number; color: number; popped: boolean };
 type Body = { x: number; y: number; vx: number; vy: number; ring: number; slot: number };
@@ -88,6 +91,11 @@ export default function NumbersGame() {
   const [wheel, setWheel] = useState<number[] | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const run = useRunScore('numbers');
+  // 碼錶：用了幾秒（切到背景的時間不算）
+  const startedAt = useRef(0);
+  const pausedFor = useRef(0);
+  const [used, setUsed] = useState(0);
+  const [watch, setWatch] = useState(0);
   const [banked, setBanked] = useState<Banked | null>(null);
 
   const nextRef = useRef(1);
@@ -153,6 +161,9 @@ export default function NumbersGame() {
     levelRef.current = n;
     run.begin(n);
     setBanked(null);
+    startedAt.current = performance.now();
+    pausedFor.current = 0;
+    setWatch(0);
     setLevel(n);
     saveLevel('numbers', n);
     nextRef.current = 1;
@@ -250,6 +261,19 @@ export default function NumbersGame() {
     return () => cancelAnimationFrame(raf);
   }, [phase]);
 
+  // 碼錶：每 0.2 秒更新一次；切到背景的時間不算
+  useEffect(() => {
+    if (phase !== 'play') return;
+    if (!visible) {
+      const hiddenAt = performance.now();
+      return () => {
+        pausedFor.current += (performance.now() - hiddenAt) / 1000;
+      };
+    }
+    const id = setInterval(() => setWatch(Math.floor(secondsSince(startedAt.current, pausedFor.current))), 200);
+    return () => clearInterval(id);
+  }, [phase, visible]);
+
   // 倒數計時：切到背景會暫停
   useEffect(() => {
     if (phase !== 'play' || !visible || !levelConfig(levelRef.current).time) return;
@@ -294,8 +318,6 @@ export default function NumbersGame() {
     const bubble = bubbles.find((b) => b.n === n);
     if (rect && bubble) burst(rect.left + rect.width / 2, rect.top + rect.height / 2, CANDY[bubble.color].base, 12, rect.width * 0.7);
     const L = levelRef.current;
-    run.add(HIT_POINTS * L);
-    if (rect) floatText(rect.left + rect.width / 2, rect.top + rect.height * 0.3, `+${HIT_POINTS * L}`, '#0C7550');
     bodies.current.delete(n);
     setBubbles((list) => list.map((b) => (b.n === n ? { ...b, popped: true } : b)));
     nextRef.current = n + 1;
@@ -303,8 +325,9 @@ export default function NumbersGame() {
     if (n === levelConfig(levelRef.current).count) {
       timers.cancel(hintTimer.current);
       phaseRef.current = 'win';
-      const timeBonus = levelConfig(L).time ? Math.ceil(remaining.current / 1000) * L : 0;
-      run.add(CLEAR_POINTS * L + timeBonus);
+      const used = secondsSince(startedAt.current, pausedFor.current);
+      setUsed(Math.ceil(used));
+      run.add(speedPoints(levelConfig(L).count, used, L));
       timers.after(800, () => {
         setBanked(run.bank());
         saveLevel('numbers', levelRef.current + 1);
@@ -346,10 +369,15 @@ export default function NumbersGame() {
           <span className={s.count}>
             已完成 <b key={done}>{done}</b> / {total}
           </span>
-          {timed && (
+          {timed ? (
             <span className={shownTime <= 10 && phase === 'play' ? `${s.clock} ${s.clockLow}` : s.clock}>
               <ClockIcon />
               <b>{shownTime}</b>秒
+            </span>
+          ) : (
+            <span className={s.clock} aria-label={`用了 ${watch} 秒`}>
+              <ClockIcon />
+              <b>{phase === 'play' ? watch : 0}</b>秒
             </span>
           )}
         </div>
@@ -446,7 +474,7 @@ export default function NumbersGame() {
           </div>
         </div>
       </Sheet>
-      <WinSheet open={phase === 'win'} level={level} points={banked} note={note} onNext={() => start(level + 1)} onRestart={() => start(1)} onHome={goHome} />
+      <WinSheet open={phase === 'win'} level={level} message={`用了 ${used} 秒，${used <= levelConfig(level).count * PAR_SECONDS ? '真快！' : '做得很好！'}`} points={banked} note={note} onNext={() => start(level + 1)} onRestart={() => start(1)} onHome={goHome} />
     </GameShell>
   );
 }

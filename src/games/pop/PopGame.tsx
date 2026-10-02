@@ -19,10 +19,10 @@ import PopArt from './PopArt';
 import s from './pop.module.css';
 
 // 一次消越多，分數越多（消 n 顆得 n × n × 5 分）；全部消光再加獎勵
-// 分數會一關一關累積，所以第一關給分保守、越後面越值錢：
-// 每顆 10 × 關卡；一次消越多，每顆加成越多（消 2 顆沒加成，每多 1 顆多 10%）；全部消光再加 100 × 關卡
-const pointsFor = (n: number, level: number) => Math.round(n * 10 * level * (1 + 0.1 * Math.max(0, n - 2)));
-const clearBonus = (level: number) => 100 * level;
+// 分數會一關一關累積，所以給分保守、越後面越值錢：
+// 每顆 1 × 關卡；一次消越多，每顆加成越多（消 2 顆沒加成，每多 1 顆多 10%）；全部消光再加 10 × 關卡
+const pointsFor = (n: number, level: number) => Math.round(n * level * (1 + 0.1 * Math.max(0, n - 2)));
+const clearBonus = (level: number) => 10 * level;
 
 function praiseFor(n: number) {
   if (n >= 16) return '大豐收！';

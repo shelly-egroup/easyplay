@@ -19,9 +19,9 @@ import s from './bricks.module.css';
 // 時間越久，降得越快、缺口越多。磚塊碰到底就結束。
 
 /* 想調難度改這裡：每過 STAGE_SECONDS 秒速度升一級；speed 每秒降幾排；gaps 每排缺幾格（最少～最多） */
-const STAGE_SECONDS = 18;
+const STAGE_SECONDS = 15;
 function stageConfig(stage: number, cols: number) {
-  const speed = Math.min(0.9, 0.2 + (stage - 1) * 0.06);
+  const speed = Math.min(1.5, 0.35 + (stage - 1) * 0.09);
   const table: [number, number][] = [
     [1, 2],
     [2, 2],
@@ -86,7 +86,7 @@ export default function BricksGame() {
   const wellEl = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const id = setTimeout(() => setBest(read('bricks.best', 0)), 0);
+    const id = setTimeout(() => setBest(read('bricks.best.v2', 0)), 0);
     return () => clearTimeout(id);
   }, []);
 
@@ -131,9 +131,9 @@ export default function BricksGame() {
     phaseRef.current = 'over';
     buzz([40, 60, 40]);
     sound.nope();
-    const prev = read('bricks.best', 0);
+    const prev = read('bricks.best.v2', 0);
     if (stats.current.score > prev) {
-      write('bricks.best', stats.current.score);
+      write('bricks.best.v2', stats.current.score);
       setBest(stats.current.score);
       setRecord(true);
       timers.after(300, () => sound.win());
@@ -211,7 +211,7 @@ export default function BricksGame() {
     const st = stats.current;
     st.combo = elapsed.current - st.lastClear <= COMBO_WINDOW ? Math.min(5, st.combo + 1) : 1;
     st.lastClear = elapsed.current;
-    const gained = 10 * stageNo * full.length * (full.length > 1 ? 2 : 1) * st.combo;
+    const gained = stageNo * full.length * (full.length > 1 ? 2 : 1) * st.combo;
     stats.current.score += gained;
     stats.current.lines += full.length;
     setScore(stats.current.score);

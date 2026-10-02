@@ -5,7 +5,9 @@ import { read, write } from './store';
 // - 開始第 1 關：總分歸零
 // - 開始第 2 關以後：從上一關結束時的總分繼續
 // - 同一關重來：只扣回這一關剛得的分數
-export function useRunScore(id: string) {
+export function useRunScore(game: string) {
+  // 計分方式改過，用新的儲存位置，舊的總分不再沿用（關卡進度不受影響）
+  const id = `${game}.v2`;
   const [base, setBase] = useState(0);
   const [points, setPoints] = useState(0);
   const baseRef = useRef(0);

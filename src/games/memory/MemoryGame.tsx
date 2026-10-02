@@ -35,10 +35,10 @@ const FRUITS = [
 const PAIRS = [3, 4, 6, 8, 10, 12];
 const pairsFor = (n: number) => PAIRS[Math.min(PAIRS.length, n) - 1];
 const previewFor = (pairs: number) => 2600 + pairs * 300;
-// 分數（會一關一關累積）：每找到一對 20×關卡；過關 30×關卡；一次都沒翻錯再加 20×關卡
-const PAIR_POINTS = 20;
-const CLEAR_POINTS = 30;
-const PERFECT_POINTS = 20;
+// 分數（會一關一關累積）：每找到一對 2×關卡；過關 5×關卡；一次都沒翻錯再加 3×關卡
+const PAIR_POINTS = 2;
+const CLEAR_POINTS = 5;
+const PERFECT_POINTS = 3;
 
 type Card = { id: number; fruit: number; up: boolean; done: boolean };
 type Phase = 'intro' | 'preview' | 'play' | 'win';

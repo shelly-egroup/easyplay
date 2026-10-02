@@ -35,8 +35,9 @@ function levelConfig(n: number): MoleLevel {
   return { ...last, up: Math.max(1100, last.up - extra * 70), gap: Math.max(600, last.gap - extra * 25), goal: Math.min(26, last.goal + extra * 2), bunny: 0.28 };
 }
 
-// 分數（會一關一關累積）：地鼠 5×關卡、金色 10×關卡、打到兔子扣 5×關卡；過關時剩幾秒再加幾秒×關卡
-const MOLE_POINTS = 5;
+// 分數（會一關一關累積）：越快達標分數越高。
+// 地鼠 1×關卡、金色 2×關卡、打到兔子扣 1×關卡；過關時剩幾秒再加幾秒×關卡
+const MOLE_POINTS = 1;
 
 type Kind = 'mole' | 'gold' | 'bunny';
 type Hole = { state: 'idle' | 'up' | 'hit'; kind: Kind };
@@ -343,7 +344,7 @@ export default function MoleGame() {
           </div>
         </div>
       </Sheet>
-      <WinSheet open={phase === 'win'} level={level} points={banked} note={note} onNext={() => start(level + 1)} onRestart={() => start(1)} onHome={goHome} />
+      <WinSheet open={phase === 'win'} level={level} message={banked ? `還剩 ${timeLeft} 秒就達標，${timeLeft >= 15 ? '超快！' : '做得很好！'}` : undefined} points={banked} note={note} onNext={() => start(level + 1)} onRestart={() => start(1)} onHome={goHome} />
     </GameShell>
   );
 }
