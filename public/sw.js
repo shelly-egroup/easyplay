@@ -1,7 +1,7 @@
 // easyplay service worker：讓遊戲可以加到主畫面，沒網路也能玩
-const VERSION = 'easyplay-v2';
+const VERSION = 'easyplay-v3';
 const scope = new URL(self.registration.scope).pathname;
-const PAGES = ['', 'pop/', 'memory/', 'numbers/', 'mole/'].map((p) => scope + p);
+const PAGES = ['', 'pop/', 'memory/', 'numbers/', 'mole/', 'hoops/', 'bricks/'].map((p) => scope + p);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

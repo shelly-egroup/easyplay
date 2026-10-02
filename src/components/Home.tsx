@@ -6,7 +6,7 @@ import { GAMES, type GameId, type GameMeta } from '@/games/registry';
 import { markFromHome } from '@/lib/nav';
 import { sound, useSoundOn } from '@/lib/sound';
 import { useSavedLevel } from '@/lib/store';
-import { MemoryHero, MoleHero, NumbersHero, PopHero } from './art/Heroes';
+import { BricksHero, HoopsHero, MemoryHero, MoleHero, NumbersHero, PopHero } from './art/Heroes';
 import { BrandMark, PlayIcon, SoundOffIcon, SoundOnIcon } from './icons';
 import s from './Home.module.css';
 
@@ -15,6 +15,8 @@ const HERO: Record<GameId, ReactNode> = {
   memory: <MemoryHero />,
   numbers: <NumbersHero />,
   mole: <MoleHero />,
+  hoops: <HoopsHero />,
+  bricks: <BricksHero />,
 };
 
 // 每 30 秒更新一次問候語、日期、時間
@@ -136,6 +138,7 @@ function GameCard({ game, index }: { game: GameMeta; index: number }) {
         sound.tap();
       }}
     >
+      <div className={s.inner}>
       <div className={s.art}>
         {HERO[game.id]}
         <span className={level === null ? `${s.level} ${s.levelHidden}` : s.level}>{level && level > 1 ? `玩到第 ${level} 關` : '新遊戲'}</span>
@@ -150,6 +153,7 @@ function GameCard({ game, index }: { game: GameMeta; index: number }) {
         <span className={s.go} aria-hidden="true">
           <PlayIcon />
         </span>
+      </div>
       </div>
     </Link>
   );

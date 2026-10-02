@@ -13,12 +13,15 @@ import { HomeIcon, SoundOffIcon, SoundOnIcon } from './icons';
 export default function GameShell({
   game,
   level,
+  badge,
   hud,
   stageRef,
   children,
 }: {
   game: GameMeta;
-  level: number;
+  /** 沒有關卡的遊戲不用傳，改用 badge（例如「最高 56 分」） */
+  level?: number;
+  badge?: ReactNode;
   hud?: ReactNode;
   stageRef?: Ref<HTMLDivElement>;
   children: ReactNode;
@@ -45,9 +48,13 @@ export default function GameShell({
           <ViewTransition name={`title-${game.id}`} share="morph" default="none">
             <h1>{game.title}</h1>
           </ViewTransition>
-          <span key={level} className="chip">
-            第 {level} 關
-          </span>
+          {level !== undefined ? (
+            <span key={level} className="chip">
+              第 {level} 關
+            </span>
+          ) : (
+            badge && <span className="chip">{badge}</span>
+          )}
         </div>
         <div className="bar__hud">{hud}</div>
         <button

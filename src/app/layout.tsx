@@ -10,7 +10,7 @@ const outfit = Outfit({ weight: ['600', '700', '800'], subsets: ['latin'], varia
 
 export const metadata: Metadata = {
   title: { default: 'easyplay 小遊戲', template: '%s・easyplay' },
-  description: '大字、大按鈕、不計時也不會輸的小遊戲：消消樂、翻牌配對、數字點點、打地鼠。',
+  description: '大字、大按鈕、滿版好按的小遊戲：消消樂、翻牌配對、數字點點、打地鼠、投籃、補磚塊。',
   applicationName: 'easyplay',
   appleWebApp: { capable: true, title: 'easyplay', statusBarStyle: 'default' },
   formatDetection: { telephone: false },

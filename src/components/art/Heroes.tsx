@@ -217,3 +217,71 @@ export function MoleHero() {
     </svg>
   );
 }
+
+export function HoopsHero() {
+  const uid = useUid();
+  return (
+    <svg className={s.hero} viewBox="0 0 320 210" aria-hidden="true">
+      <defs>
+        <radialGradient id={`${uid}-ball`} cx="0.36" cy="0.3" r="0.8">
+          <stop offset="0" stopColor="#FFB26B" />
+          <stop offset="0.55" stopColor="#FF8A3D" />
+          <stop offset="1" stopColor="#D65A12" />
+        </radialGradient>
+        <linearGradient id={`${uid}-flame`} x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#FFF4B8" />
+          <stop offset="0.35" stopColor="#FFC23D" />
+          <stop offset="0.7" stopColor="#FF6A1F" />
+          <stop offset="1" stopColor="#FF6A1F" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <rect x="168" y="20" width="124" height="80" rx="12" fill="#fff" stroke="#FF8A3D" strokeWidth="5" />
+      <rect x="207" y="58" width="46" height="34" rx="4" fill="none" stroke="#FF8A3D" strokeWidth="4" />
+      <g stroke="#fff" strokeWidth="3" strokeLinecap="round" opacity="0.95">
+        <path d="M196 108l14 40M212 108l9 40M228 108l2 40M244 108l-4 40M260 108l-10 40M202 122h56M207 136h46" />
+      </g>
+      <ellipse cx="230" cy="105" rx="38" ry="8" fill="none" stroke="#E8501A" strokeWidth="6" />
+      <path d="M48 196c18-40 34-62 58-78" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeDasharray="2 12" opacity="0.9" />
+      <g className={s.bobA}>
+        <path className={s.flame} d="M84 168c-14-18-10-44 12-58 6 18 26 22 34 4 10 26-6 54-46 54z" fill={`url(#${uid}-flame)`} />
+        <circle cx="112" cy="112" r="32" fill={`url(#${uid}-ball)`} />
+        <g fill="none" stroke="#7A3410" strokeWidth="2.6" strokeLinecap="round" opacity="0.85">
+          <path d="M112 80v64M80 112h64M90 90c8 7 12 14 12 22s-4 15-12 22M134 90c-8 7-12 14-12 22s4 15 12 22" />
+        </g>
+        <ellipse cx="102" cy="98" rx="9" ry="5" fill="#fff" opacity="0.35" transform="rotate(-28 102 98)" />
+      </g>
+      <Sparkle x={52} y={52} r={10} className={s.twinkleA} />
+      <Sparkle x={300} y={150} r={8} className={s.twinkleB} />
+    </svg>
+  );
+}
+
+export function BricksHero() {
+  const uid = useUid();
+  const top = [0, 1, 2, 3, 4];
+  return (
+    <svg className={s.hero} viewBox="0 0 320 210" aria-hidden="true">
+      <defs>
+        <CandyDefs uid={uid} />
+      </defs>
+      {top.map((i) => (
+        <Candy key={`a${i}`} uid={uid} x={76 + i * 42} y={44} size={38} rot={0} color={4} />
+      ))}
+      {top.map((i) =>
+        i === 3 ? (
+          <rect key={`b${i}`} x={76 + i * 42 - 17} y={70} width={34} height={34} rx={9} fill="none" stroke="#8E6CF0" strokeWidth="3" strokeDasharray="5 5" />
+        ) : (
+          <Candy key={`b${i}`} uid={uid} x={76 + i * 42} y={87} size={38} rot={0} color={1} />
+        )
+      )}
+      <g className={s.shoot}>
+        <Candy uid={uid} x={202} y={150} size={38} rot={0} color={1} />
+        <g stroke="#fff" strokeWidth="4" strokeLinecap="round" opacity="0.9">
+          <path d="M192 180v14M202 178v20M212 180v14" />
+        </g>
+      </g>
+      <Sparkle x={48} y={150} r={10} className={s.twinkleA} />
+      <Sparkle x={282} y={150} r={8} className={s.twinkleB} />
+    </svg>
+  );
+}

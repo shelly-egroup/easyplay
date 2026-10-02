@@ -46,6 +46,8 @@
 [data-theme='pop'] { --a: #ff6f61; --a-hi: #ff9d8e; --a-lo: #e0473c; --a-soft: #ffe7e2; --a-ink: #b5392d; --on-a: #fff; --m1: #ffd6cc; --m2: #ffe8c4; --m3: #efdcff; }
 [data-theme='memory'] { --a: #4a9bf6; --a-hi: #7ebbff; --a-lo: #2a74d3; --a-soft: #e2eeff; --a-ink: #1c5bb0; --on-a: #fff; --m1: #d2e5ff; --m2: #e4dcff; --m3: #d0f2ec; }
 [data-theme='numbers'] { --a: #22b886; --a-hi: #5ad8ab; --a-lo: #129366; --a-soft: #dcf5ea; --a-ink: #0c7550; --on-a: #fff; --m1: #cdf1e1; --m2: #e3f5cc; --m3: #d4eaff; }
+[data-theme='hoops'] { --a: #ff8a3d; --a-hi: #ffb072; --a-lo: #e5661a; --a-soft: #ffeadb; --a-ink: #a9480c; --on-a: #fff; --m1: #ffdcc4; --m2: #ece0ff; --m3: #ffe9c2; }
+[data-theme='bricks'] { --a: #8e6cf0; --a-hi: #b49bff; --a-lo: #6c4cd4; --a-soft: #ece6ff; --a-ink: #5236b8; --on-a: #fff; --m1: #e3dbff; --m2: #d6e8ff; --m3: #ffdff0; }
 [data-theme='mole'] { --a: #ffb52e; --a-hi: #ffd36e; --a-lo: #e89400; --a-soft: #fff1d2; --a-ink: #9a5d00; --on-a: #3b2405; --m1: #ffe8b8; --m2: #def3c8; --m3: #ffd9c6; }
 
 *, *::before, *::after { box-sizing: border-box; }

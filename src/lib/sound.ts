@@ -120,6 +120,28 @@ export const sound = {
     note(523.25, { dur: 0.3, vol: 0.34, slide: 0.55, partials: [[1, 1, 1], [2.01, 0.25, 0.4]] });
     note(1318.5, { delay: 0.02, dur: 0.12, vol: 0.1, partials: [[1, 1, 1]] });
   },
+  /** 投籃：刷網進球 */
+  swish(mult = 1) {
+    note(659.25, { dur: 0.35, vol: 0.28 });
+    note(987.77, { delay: 0.07, dur: 0.45, vol: 0.22 });
+    if (mult > 1) note(1318.5, { delay: 0.14, dur: 0.5, vol: 0.18 });
+  },
+  /** 投籃：打到籃框彈出去 */
+  clank() {
+    note(311.13, { dur: 0.28, vol: 0.22, type: 'triangle', partials: [[1, 1, 1], [2.76, 0.35, 0.5], [5.4, 0.15, 0.3]] });
+  },
+  /** 補磚塊：磚塊卡上去 */
+  place() {
+    note(392.0, { dur: 0.14, vol: 0.22, partials: [[1, 1, 1], [2, 0.2, 0.5]] });
+  },
+  /** 補磚塊：一整排消掉 */
+  clear(rows = 1) {
+    [523.25, 659.25, 783.99, 1046.5].slice(0, 2 + rows).forEach((f, i) => note(f, { delay: i * 0.07, dur: 0.4, vol: 0.24 }));
+  },
+  /** 補磚塊：整疊往下掉一排 */
+  drop() {
+    note(164.81, { dur: 0.22, vol: 0.18, type: 'triangle', slide: 0.85, partials: [[1, 1, 1]] });
+  },
   win() {
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => note(f, { delay: i * 0.12, dur: 0.6, vol: 0.26 }));
     [659.25, 783.99, 1046.5].forEach((f) => note(f, { delay: 0.55, dur: 1.2, vol: 0.16 }));
@@ -142,6 +164,8 @@ export function useSoundOn() {
 /** 安卓會輕輕震一下；iOS 不支援就自動略過 */
 export function buzz(pattern: number | number[]) {
   if (!isOn() || typeof navigator === 'undefined' || !navigator.vibrate) return;
+  // 使用者還沒點過畫面前，瀏覽器不允許震動
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
   try {
     navigator.vibrate(pattern);
   } catch {

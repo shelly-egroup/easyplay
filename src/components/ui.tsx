@@ -54,11 +54,14 @@ export function IntroSheet(props: {
   art: ReactNode;
   text: ReactNode;
   say: string;
-  level: number;
+  /** 沒有關卡的遊戲（例如投籃）不用傳，改用 tag 顯示最高分之類的資訊 */
+  level?: number;
+  tag?: ReactNode;
   onStart: (level: number) => void;
 }) {
   const hydrated = useHydrated();
-  const { open, title, art, text, say, level, onStart } = props;
+  const { open, title, art, text, say, level = 1, tag, onStart } = props;
+  const leveled = props.level !== undefined;
   const go = (n: number) => {
     sound.unlock();
     sound.tap();
@@ -75,9 +78,9 @@ export function IntroSheet(props: {
         <p className="sheet__text">{text}</p>
         <div className="sheet__actions">
           <button className="btn btn--primary" type="button" onClick={() => go(level)}>
-            開始玩<small>第 {level} 關</small>
+            開始玩{leveled ? <small>第 {level} 關</small> : tag && <small>{tag}</small>}
           </button>
-          {level > 1 && (
+          {leveled && level > 1 && (
             <button className="btn btn--ghost" type="button" onClick={() => go(1)}>
               從第 1 關重新開始
             </button>
