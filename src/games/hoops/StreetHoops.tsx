@@ -13,7 +13,7 @@ import { read, write } from '@/lib/store';
 import s from './hoops.module.css';
 
 // 街頭跳投（比分數）：夜晚的街頭球場，側面看過去。
-// 每點一下，球就往「目前前進的方向」跳（不會自動轉向籃框）；撞到牆、籃板才會反彈掉頭，從哪裡掉下來就從哪裡繼續。
+// 點哪裡，球就往哪裡跳（點得離球越遠，往旁邊跳得越遠）；撞到牆、籃板會反彈，從哪裡掉下來就從哪裡繼續。
 // 投進後籃框會在隨機的新位置出現（跟球在哪裡無關）。連進 3 球變火焰球（×2）、6 球藍火（×3）；投進就重新計時，時間到才結束。
 
 /** 投進幾球之後變多難：rim 籃框寬（幾個球半徑）、amp 籃框上下晃動、clock 每球幾秒、h 籃框高度範圍（畫面比例） */
@@ -83,7 +83,7 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
   const dims = () => {
     const { w, h } = size.current;
     const R = Math.max(22, Math.min(44, h * 0.055));
-    return { w, h, R, floor: h * 0.86, g: h * 2.4, jump: h * 0.86, boost: Math.max(130, w * 0.1), maxVx: Math.max(240, w * 0.36) };
+    return { w, h, R, floor: h * 0.86, g: h * 2.4, jump: h * 0.86, maxVx: Math.max(320, w * 0.9) };
   };
 
   // 投進後籃框換到隨機的新位置（跟球在哪裡無關）：先淡出，再在新位置淡入
@@ -155,11 +155,12 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
     const st = world.current;
     const d = dims();
     const b = st.ball;
-    // 往目前前進的方向跳（不會自動轉向籃框）
-    const dir = Math.abs(b.vx) > 20 ? Math.sign(b.vx) : st.facing;
-    st.facing = dir;
+    // 點哪裡就往哪裡跳：點在球的右邊就往右、左邊就往左，點得越遠跳得越遠
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dx = e.clientX - rect.left - b.x;
     b.vy = -d.jump;
-    b.vx = dir * Math.min(d.maxVx, Math.abs(b.vx) * 0.6 + d.boost);
+    b.vx = Math.max(-d.maxVx, Math.min(d.maxVx, dx * 1.6));
+    if (Math.abs(b.vx) > 20) st.facing = Math.sign(b.vx);
     if (!st.tapped) {
       st.tapped = true;
       setStarted(true);
@@ -375,8 +376,8 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
       }
     >
       <div className={s.street}>
-        <canvas ref={canvasEl} className={s.streetCanvas} onPointerDown={tap} aria-label="街頭球場，點一下讓球往前跳" />
-        {phase === 'play' && !started && <div className={s.tapHint}>點一下，球會往前跳 👆</div>}
+        <canvas ref={canvasEl} className={s.streetCanvas} onPointerDown={tap} aria-label="街頭球場，點哪裡球就往哪裡跳" />
+        {phase === 'play' && !started && <div className={s.tapHint}>點籃框那一邊，球就往那邊跳 👆</div>}
       </div>
       {praise.node}
 
@@ -386,12 +387,12 @@ export default function StreetHoops({ modeSwitch, onOtherMode }: { modeSwitch: R
         art={<StreetArt />}
         text={
           <>
-            每點一下，球就 <b>往前跳</b>，撞到牆會彈回來。
+            <b>點哪裡，球就往哪裡跳</b>，可以連點越跳越高。
             <br />
             讓球從上面掉進籃框！投進後籃框會換位置。
           </>
         }
-        say="每點一下，球就會往前跳，撞到牆壁會彈回來換方向。讓球從上面掉進籃框就得分，空心進球分數更高。球撞到牆壁或籃板會彈回來。投進以後籃框會換一個位置。連續投進會變成火焰球。投進會重新計時，時間到就結束。"
+        say="點畫面哪裡，球就會往那邊跳，點得越遠跳得越遠，可以連點讓球越跳越高。讓球從上面掉進籃框就得分，空心進球分數更高。球撞到牆壁或籃板會彈回來。投進以後籃框會換一個位置。連續投進會變成火焰球。投進會重新計時，時間到就結束。"
         tag={best > 0 ? `最高 ${best} 分` : undefined}
         extra={modeSwitch}
         onStart={start}
