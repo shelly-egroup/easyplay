@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import GameShell from '@/components/GameShell';
 import { ClockIcon } from '@/components/icons';
 import { IntroSheet, Sheet, usePraise } from '@/components/ui';
@@ -12,6 +12,7 @@ import { buzz, sound } from '@/lib/sound';
 import { read, write } from '@/lib/store';
 import BallSvg from './BallSvg';
 import HoopsArt from './HoopsArt';
+import StreetHoops from './StreetHoops';
 import s from './hoops.module.css';
 
 // 投籃（不分關卡，比分數）：
@@ -35,7 +36,7 @@ const MAX_IN_AIR = 3;
 type Ball = { id: number; x: number; y: number; vx: number; vy: number; scale: number; flying: boolean; crossed: boolean; fire: number };
 type Phase = 'intro' | 'play' | 'over';
 
-export default function HoopsGame() {
+function ClassicHoops({ modeSwitch, onOtherMode }: { modeSwitch: ReactNode; onOtherMode: () => void }) {
   const goHome = useGoHome();
   const timers = useTimers();
   const praise = usePraise();
@@ -316,7 +317,7 @@ export default function HoopsGame() {
 
       <IntroSheet
         open={phase === 'intro'}
-        title={GAME.hoops.title}
+        title="定點投籃"
         art={<HoopsArt />}
         text={
           <>
@@ -327,6 +328,7 @@ export default function HoopsGame() {
         }
         say="點一下畫面，球就會往上飛。連續投進三球會變成火焰球，分數加倍。每投進一球，時間就重新計算，時間到就結束。"
         tag={best > 0 ? `最高 ${best} 分` : undefined}
+        extra={modeSwitch}
         onStart={start}
       />
       <Sheet open={phase === 'over'} label="時間到了" confetti={record}>
@@ -350,12 +352,51 @@ export default function HoopsGame() {
             >
               再玩一次
             </button>
-            <button className="btn btn--ghost" type="button" onClick={goHome}>
+            <button className="btn btn--ghost" type="button" onClick={onOtherMode}>
+              換成街頭跳投
+            </button>
+            <button className="btn btn--quiet" type="button" onClick={goHome}>
               休息一下，回首頁
             </button>
           </div>
         </div>
       </Sheet>
     </GameShell>
+  );
+}
+
+type Mode = 'classic' | 'street';
+
+// 兩種玩法可以切換：定點投籃（可愛畫風）、街頭跳投（夜晚街頭球場）
+export default function HoopsGame() {
+  const [mode, setMode] = useState<Mode>('classic');
+  useEffect(() => {
+    const id = setTimeout(() => setMode(read<Mode>('hoops.mode', 'classic')), 0);
+    return () => clearTimeout(id);
+  }, []);
+  const choose = (m: Mode) => {
+    sound.tap();
+    setMode(m);
+    write('hoops.mode', m);
+  };
+  const modeSwitch = (
+    <div className={s.modes} role="radiogroup" aria-label="選擇玩法">
+      {(
+        [
+          ['classic', '🏀', '定點投籃'],
+          ['street', '🌃', '街頭跳投'],
+        ] as const
+      ).map(([id, icon, label]) => (
+        <button key={id} type="button" role="radio" aria-checked={mode === id} className={mode === id ? `${s.mode} ${s.modeOn}` : s.mode} onClick={() => choose(id)}>
+          <span aria-hidden="true">{icon}</span>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+  return mode === 'street' ? (
+    <StreetHoops key="street" modeSwitch={modeSwitch} onOtherMode={() => choose('classic')} />
+  ) : (
+    <ClassicHoops key="classic" modeSwitch={modeSwitch} onOtherMode={() => choose('street')} />
   );
 }

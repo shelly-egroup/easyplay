@@ -57,6 +57,8 @@ export function IntroSheet(props: {
   /** 沒有關卡的遊戲（例如投籃）不用傳，改用 tag 顯示最高分之類的資訊 */
   level?: number;
   tag?: ReactNode;
+  /** 說明文字和按鈕之間的額外內容（例如切換玩法） */
+  extra?: ReactNode;
   onStart: (level: number) => void;
 }) {
   const hydrated = useHydrated();
@@ -76,6 +78,7 @@ export function IntroSheet(props: {
       <div className="sheet__body">
         <h2 className="sheet__title">{title}</h2>
         <p className="sheet__text">{text}</p>
+        {props.extra}
         <div className="sheet__actions">
           <button className="btn btn--primary" type="button" onClick={() => go(level)}>
             開始玩{leveled ? <small>第 {level} 關</small> : tag && <small>{tag}</small>}
