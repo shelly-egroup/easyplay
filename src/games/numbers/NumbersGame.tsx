@@ -5,11 +5,12 @@ import GameShell from '@/components/GameShell';
 import { CheckIcon, ClockIcon } from '@/components/icons';
 import { IntroSheet, Sheet, WinSheet } from '@/components/ui';
 import { GAME } from '@/games/registry';
-import { burst, prefersReducedMotion, shake } from '@/lib/fx';
+import { burst, floatText, prefersReducedMotion, shake } from '@/lib/fx';
 import { pick, shuffle, useElementSize, usePageVisible, useTimers } from '@/lib/hooks';
 import { useGoHome } from '@/lib/nav';
 import { CANDY } from '@/lib/palette';
 import { buzz, sound } from '@/lib/sound';
+import { useRunScore, type Banked } from '@/lib/score';
 import { saveLevel, useSavedLevel } from '@/lib/store';
 import { toast } from '@/lib/toast';
 import NumbersArt from './NumbersArt';
@@ -41,6 +42,10 @@ function levelConfig(n: number): NumLevel {
     ? { mode: 'float', count: 18, speed: Math.min(100, 70 + extra * 3), time: 55 }
     : { mode: 'wheel', count: 17, rings: [10, 7], spin: Math.min(40, 22 + extra * 2), time: 60 };
 }
+
+// 分數（會一關一關累積）：每點對一個 5×關卡；過關 20×關卡；限時關卡剩幾秒再加幾秒×關卡
+const HIT_POINTS = 5;
+const CLEAR_POINTS = 20;
 
 type Bubble = { n: number; color: number; popped: boolean };
 type Body = { x: number; y: number; vx: number; vy: number; ring: number; slot: number };
@@ -82,6 +87,8 @@ export default function NumbersGame() {
   const [radius, setRadius] = useState(80);
   const [wheel, setWheel] = useState<number[] | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
+  const run = useRunScore('numbers');
+  const [banked, setBanked] = useState<Banked | null>(null);
 
   const nextRef = useRef(1);
   const levelRef = useRef(1);
@@ -144,6 +151,8 @@ export default function NumbersGame() {
     const colors = Array.from({ length: cfg.count }, () => pick([0, 1, 2, 3, 4]));
     setBubbles(Array.from({ length: cfg.count }, (_, i) => ({ n: i + 1, color: colors[i], popped: false })));
     levelRef.current = n;
+    run.begin(n);
+    setBanked(null);
     setLevel(n);
     saveLevel('numbers', n);
     nextRef.current = 1;
@@ -284,6 +293,9 @@ export default function NumbersGame() {
     const rect = el?.getBoundingClientRect();
     const bubble = bubbles.find((b) => b.n === n);
     if (rect && bubble) burst(rect.left + rect.width / 2, rect.top + rect.height / 2, CANDY[bubble.color].base, 12, rect.width * 0.7);
+    const L = levelRef.current;
+    run.add(HIT_POINTS * L);
+    if (rect) floatText(rect.left + rect.width / 2, rect.top + rect.height * 0.3, `+${HIT_POINTS * L}`, '#0C7550');
     bodies.current.delete(n);
     setBubbles((list) => list.map((b) => (b.n === n ? { ...b, popped: true } : b)));
     nextRef.current = n + 1;
@@ -291,7 +303,10 @@ export default function NumbersGame() {
     if (n === levelConfig(levelRef.current).count) {
       timers.cancel(hintTimer.current);
       phaseRef.current = 'win';
+      const timeBonus = levelConfig(L).time ? Math.ceil(remaining.current / 1000) * L : 0;
+      run.add(CLEAR_POINTS * L + timeBonus);
       timers.after(800, () => {
+        setBanked(run.bank());
         saveLevel('numbers', levelRef.current + 1);
         goPhase('win');
       });
@@ -322,6 +337,7 @@ export default function NumbersGame() {
       level={shownLevel}
       stageRef={stageRef}
       hud={
+        <div className={s.hudRow}>
         <div className={`hud-card ${s.hud}`}>
           <span className={s.seekLabel}>請找</span>
           <span className={s.seek} key={next} aria-live="polite">
@@ -336,6 +352,10 @@ export default function NumbersGame() {
               <b>{shownTime}</b>秒
             </span>
           )}
+        </div>
+        <span className="hud-card total-card">
+          總分 <b key={run.total}>{run.total.toLocaleString()}</b>
+        </span>
         </div>
       }
     >
@@ -426,7 +446,7 @@ export default function NumbersGame() {
           </div>
         </div>
       </Sheet>
-      <WinSheet open={phase === 'win'} level={level} note={note} onNext={() => start(level + 1)} onRestart={() => start(1)} onHome={goHome} />
+      <WinSheet open={phase === 'win'} level={level} points={banked} note={note} onNext={() => start(level + 1)} onRestart={() => start(1)} onHome={goHome} />
     </GameShell>
   );
 }

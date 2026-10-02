@@ -326,6 +326,15 @@ svg { display: block; }
   font-size: 20px;
   font-weight: 700;
 }
+.win__points { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: -6px 0 18px; }
+.win__points span { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 12px; border-radius: 22px; background: var(--surface-2); font-size: 18px; font-weight: 700; color: var(--ink-3); }
+.win__points b { font-family: var(--font-num); font-weight: 800; font-size: 34px; line-height: 1.1; color: var(--ink); }
+.win__points span:first-child b { color: var(--a-ink); }
+.win__points em { font-style: normal; margin-top: 2px; padding: 2px 10px; border-radius: 999px; background: #ffc43d; color: #3b2405; font-size: 15px; font-weight: 900; }
+/* 遊戲中的總分膠囊 */
+.total-card { flex: none; gap: 8px; padding: 0 22px; font-size: 20px; font-weight: 700; color: var(--ink-2); }
+.total-card b { display: inline-block; font-family: var(--font-num); font-weight: 800; font-size: 32px; color: var(--a-ink); font-variant-numeric: tabular-nums; animation: bump 0.45s var(--spring); }
+@media (max-width: 600px) { .total-card { padding: 0 14px; font-size: 0; } .total-card b { font-size: 26px; } }
 .confetti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
 @keyframes badge-in { from { transform: scale(0) rotate(-40deg); } }
 @keyframes draw { to { stroke-dashoffset: 0; } }

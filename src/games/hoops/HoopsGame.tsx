@@ -61,6 +61,7 @@ function ClassicHoops({ modeSwitch, onOtherMode }: { modeSwitch: ReactNode; onOt
   const hoopEl = useRef<HTMLDivElement>(null);
   const frontEl = useRef<HTMLDivElement>(null);
   const netEl = useRef<HTMLDivElement>(null);
+  const courtEl = useRef<HTMLDivElement>(null);
   const clockEl = useRef<HTMLElement>(null);
   const nextId = useRef(1);
   const game = useRef({ score: 0, streak: 0, makes: 0, time: 10, hx: 0, hy: 0, px: 0, py: 0, ax: 0, ay: 0 });
@@ -94,6 +95,9 @@ function ClassicHoops({ modeSwitch, onOtherMode }: { modeSwitch: ReactNode; onOt
 
   const start = () => {
     timers.clear();
+    // 開局時直接量球場實際大小（畫面大小的狀態可能還沒更新）
+    const rect = courtEl.current?.getBoundingClientRect();
+    if (rect?.width) size.current = { w: rect.width, h: rect.height };
     const geo = geometry();
     game.current = { score: 0, streak: 0, makes: 0, time: 10, hx: geo.w / 2, hy: geo.rimY, px: 0, py: 0, ax: 0, ay: 0 };
     ballsRef.current = [];
@@ -280,6 +284,7 @@ function ClassicHoops({ modeSwitch, onOtherMode }: { modeSwitch: ReactNode; onOt
       }
     >
       <div
+        ref={courtEl}
         className={s.court}
         style={{ '--rim': `${rimSize}px`, '--ball': `${ballSize}px`, visibility: stage.width ? 'visible' : 'hidden' } as CSSProperties}
         onPointerDown={shoot}

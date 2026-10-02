@@ -5,7 +5,7 @@ import { useSyncExternalStore, ViewTransition, type CSSProperties, type ReactNod
 import { GAMES, type GameId, type GameMeta } from '@/games/registry';
 import { markFromHome } from '@/lib/nav';
 import { sound, useSoundOn } from '@/lib/sound';
-import { useSavedLevel } from '@/lib/store';
+import { useSavedLevel, useStoredNumber } from '@/lib/store';
 import { BricksHero, HoopsHero, MemoryHero, MoleHero, NumbersHero, PopHero } from './art/Heroes';
 import { BrandMark, PlayIcon, SoundOffIcon, SoundOnIcon } from './icons';
 import s from './Home.module.css';
@@ -123,8 +123,20 @@ function SkyIcon({ night }: { night: boolean }) {
   );
 }
 
+// 比分數的遊戲（沒有關卡）顯示最高分；有關卡的顯示玩到第幾關和累積總分
+const SCORE_ONLY: Partial<Record<GameId, string>> = { hoops: 'hoops.best', bricks: 'bricks.best' };
+
 function GameCard({ game, index }: { game: GameMeta; index: number }) {
   const level = useSavedLevel(game.id);
+  const bestKey = SCORE_ONLY[game.id];
+  const total = useStoredNumber(bestKey ?? `${game.id}.total`);
+  const label = bestKey
+    ? total
+      ? `最高 ${total.toLocaleString()} 分`
+      : '新遊戲'
+    : level && level > 1
+      ? `第 ${level} 關・${(total ?? 0).toLocaleString()} 分`
+      : '新遊戲';
   return (
     <Link
       href={`/${game.id}`}
@@ -141,7 +153,7 @@ function GameCard({ game, index }: { game: GameMeta; index: number }) {
       <div className={s.inner}>
       <div className={s.art}>
         {HERO[game.id]}
-        <span className={level === null ? `${s.level} ${s.levelHidden}` : s.level}>{level && level > 1 ? `玩到第 ${level} 關` : '新遊戲'}</span>
+        <span className={level === null ? `${s.level} ${s.levelHidden}` : s.level}>{label}</span>
       </div>
       <div className={s.body}>
         <div className={s.text}>

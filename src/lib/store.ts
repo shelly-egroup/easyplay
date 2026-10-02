@@ -45,3 +45,12 @@ export function useSavedLevel(id: string): number | null {
     () => null
   );
 }
+
+/** 讀一個存著的數字（例如總分、最高分）；預先產生畫面時回傳 null */
+export function useStoredNumber(key: string): number | null {
+  return useSyncExternalStore(
+    subscribe,
+    () => read(key, 0),
+    () => null
+  );
+}

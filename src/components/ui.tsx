@@ -107,6 +107,7 @@ export function WinSheet({
   level,
   message,
   note,
+  points,
   onNext,
   onRestart,
   onHome,
@@ -115,6 +116,8 @@ export function WinSheet({
   level: number;
   message?: ReactNode;
   note?: ReactNode;
+  /** 累積分數：這一關得幾分、總分、有沒有破紀錄 */
+  points?: { gained: number; total: number; record: boolean } | null;
   onNext: () => void;
   onRestart?: () => void;
   onHome: () => void;
@@ -136,6 +139,17 @@ export function WinSheet({
         <p className="win__kicker">第 {level} 關</p>
         <h2 className="sheet__title">過關了！</h2>
         <p className="sheet__text">{message ?? CHEERS[level % CHEERS.length]}</p>
+        {points && (
+          <div className="win__points">
+            <span>
+              這一關<b>+{points.gained.toLocaleString()}</b>
+            </span>
+            <span>
+              總分<b>{points.total.toLocaleString()}</b>
+              {points.record && <em>新紀錄</em>}
+            </span>
+          </div>
+        )}
         {note && <p className="win__note">{note}</p>}
         <div className="sheet__actions">
           <button

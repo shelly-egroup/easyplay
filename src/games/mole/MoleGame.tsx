@@ -9,6 +9,7 @@ import { burst, floatText } from '@/lib/fx';
 import { fitGrid, pick, useElementSize, usePageVisible, useTimers } from '@/lib/hooks';
 import { useGoHome } from '@/lib/nav';
 import { buzz, sound } from '@/lib/sound';
+import { useRunScore, type Banked } from '@/lib/score';
 import { saveLevel, useSavedLevel } from '@/lib/store';
 import { toast } from '@/lib/toast';
 import MoleArt from './MoleArt';
@@ -34,6 +35,9 @@ function levelConfig(n: number): MoleLevel {
   return { ...last, up: Math.max(1100, last.up - extra * 70), gap: Math.max(600, last.gap - extra * 25), goal: Math.min(26, last.goal + extra * 2), bunny: 0.28 };
 }
 
+// 分數（會一關一關累積）：地鼠 5×關卡、金色 10×關卡、打到兔子扣 5×關卡；過關時剩幾秒再加幾秒×關卡
+const MOLE_POINTS = 5;
+
 type Kind = 'mole' | 'gold' | 'bunny';
 type Hole = { state: 'idle' | 'up' | 'hit'; kind: Kind };
 type Phase = 'intro' | 'ready' | 'play' | 'timeout' | 'win';
@@ -53,6 +57,8 @@ export default function MoleGame() {
   const [score, setScore] = useState(0);
   const [count, setCount] = useState(3);
   const [timeLeft, setTimeLeft] = useState(0);
+  const run = useRunScore('mole');
+  const [banked, setBanked] = useState<Banked | null>(null);
 
   const holesRef = useRef<Hole[]>([]);
   const downTimers = useRef<(ReturnType<typeof setTimeout> | null)[]>([]);
@@ -95,6 +101,8 @@ export default function MoleGame() {
     timers.clear();
     const c = levelConfig(n);
     levelRef.current = n;
+    run.begin(n);
+    setBanked(null);
     setLevel(n);
     saveLevel('mole', n);
     holesRef.current = idle(c.holes);
@@ -175,7 +183,8 @@ export default function MoleGame() {
       gain = scoreRef.current > 0 ? -1 : 0;
       sound.nope();
       buzz([20, 40, 20]);
-      if (r) floatText(cx, r.top + r.height * 0.15, gain ? '-1' : '哎呀', '#C2392D');
+      if (r) floatText(cx, r.top + r.height * 0.15, `-${MOLE_POINTS * levelRef.current}`, '#C2392D');
+      run.add(-MOLE_POINTS * levelRef.current);
       if (!warnedBunny.current) {
         warnedBunny.current = true;
         toast(
@@ -192,15 +201,18 @@ export default function MoleGame() {
       buzz(22);
       if (r) {
         burst(cx, cy, h.kind === 'gold' ? '#FFC531' : '#FFB52E', h.kind === 'gold' ? 16 : 10, r.width * 0.5);
-        floatText(cx, r.top + r.height * 0.15, `+${gain}`, h.kind === 'gold' ? '#D18A00' : '#9A5D00');
+        floatText(cx, r.top + r.height * 0.15, `+${gain * MOLE_POINTS * levelRef.current}`, h.kind === 'gold' ? '#D18A00' : '#9A5D00');
       }
+      run.add(gain * MOLE_POINTS * levelRef.current);
     }
     scoreRef.current = Math.max(0, scoreRef.current + gain);
     setScore(scoreRef.current);
     downTimers.current[i] = timers.after(650, () => lower(i));
     if (scoreRef.current >= levelConfig(levelRef.current).goal) {
       phaseRef.current = 'win';
+      run.add(Math.ceil(remaining.current / 1000) * levelRef.current);
       timers.after(900, () => {
+        setBanked(run.bank());
         saveLevel('mole', levelRef.current + 1);
         goPhase('win');
       });
@@ -228,9 +240,12 @@ export default function MoleGame() {
       hud={
         <div className={s.hud}>
           <Meter value={Math.min(score, cfg.goal)} max={cfg.goal}>
-            得分 <b key={score}>{Math.min(score, cfg.goal)}</b>
+            目標 <b key={score}>{Math.min(score, cfg.goal)}</b>
             <span>/ {cfg.goal}</span>
           </Meter>
+          <span className="hud-card total-card">
+            總分 <b key={run.total}>{run.total.toLocaleString()}</b>
+          </span>
           <span className={shownTime <= 10 && phase === 'play' ? `hud-card ${s.clock} ${s.clockLow}` : `hud-card ${s.clock}`}>
             <ClockIcon />
             <b>{shownTime}</b>秒
@@ -282,7 +297,7 @@ export default function MoleGame() {
           <>
             地鼠探出頭來，趕快 <b>點一下</b> 牠！
             <br />
-            時間內打到 {cfg.goal} 分就過關。
+            時間內達到目標 {cfg.goal} 就過關。
             {cfg.bunny > 0 && (
               <>
                 <br />
@@ -304,7 +319,7 @@ export default function MoleGame() {
         <div className="sheet__body">
           <h2 className="sheet__title">時間到了！</h2>
           <p className="sheet__text">
-            得到 <b>{score}</b> 分，還差 <b>{Math.max(0, cfg.goal - score)}</b> 分。
+            這一關打到 <b>{score}</b>，還差 <b>{Math.max(0, cfg.goal - score)}</b> 就過關了。
             <br />
             再試一次，一定可以！
           </p>
@@ -328,7 +343,7 @@ export default function MoleGame() {
           </div>
         </div>
       </Sheet>
-      <WinSheet open={phase === 'win'} level={level} note={note} onNext={() => start(level + 1)} onRestart={() => start(1)} onHome={goHome} />
+      <WinSheet open={phase === 'win'} level={level} points={banked} note={note} onNext={() => start(level + 1)} onRestart={() => start(1)} onHome={goHome} />
     </GameShell>
   );
 }

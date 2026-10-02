@@ -9,6 +9,8 @@ import { burst, shake } from '@/lib/fx';
 import { fitGrid, shuffle, useElementSize, useTimers } from '@/lib/hooks';
 import { useGoHome } from '@/lib/nav';
 import { buzz, sound } from '@/lib/sound';
+import { floatText } from '@/lib/fx';
+import { useRunScore, type Banked } from '@/lib/score';
 import { saveLevel, useSavedLevel } from '@/lib/store';
 import MemoryArt from './MemoryArt';
 import s from './memory.module.css';
@@ -33,6 +35,10 @@ const FRUITS = [
 const PAIRS = [3, 4, 6, 8, 10, 12];
 const pairsFor = (n: number) => PAIRS[Math.min(PAIRS.length, n) - 1];
 const previewFor = (pairs: number) => 2600 + pairs * 300;
+// 分數（會一關一關累積）：每找到一對 20×關卡；過關 30×關卡；一次都沒翻錯再加 20×關卡
+const PAIR_POINTS = 20;
+const CLEAR_POINTS = 30;
+const PERFECT_POINTS = 20;
 
 type Card = { id: number; fruit: number; up: boolean; done: boolean };
 type Phase = 'intro' | 'preview' | 'play' | 'win';
@@ -49,6 +55,10 @@ export default function MemoryGame() {
   const [cards, setCards] = useState<Card[]>([]);
   const [found, setFound] = useState(0);
   const [peeking, setPeeking] = useState(false);
+  const run = useRunScore('memory');
+  const [banked, setBanked] = useState<Banked | null>(null);
+  const mistakes = useRef(0);
+  const [perfect, setPerfect] = useState(false);
 
   const cardsRef = useRef<Card[]>([]);
   const phaseRef = useRef<Phase>('intro');
@@ -80,6 +90,9 @@ export default function MemoryGame() {
     saveLevel('memory', n);
     foundRef.current = 0;
     setFound(0);
+    run.begin(n);
+    setBanked(null);
+    mistakes.current = 0;
     first.current = null;
     pending.current = null;
     lock.current = true;
@@ -149,9 +162,18 @@ export default function MemoryGame() {
       });
       foundRef.current += 1;
       setFound(foundRef.current);
-      if (foundRef.current === pairsFor(levelRef.current)) {
+      const L = levelRef.current;
+      run.add(PAIR_POINTS * L);
+      timers.after(380, () => {
+        const pt = center(card.id);
+        if (pt) floatText(pt.x, pt.y, `+${PAIR_POINTS * L}`, '#1C5BB0');
+      });
+      if (foundRef.current === pairsFor(L)) {
         lock.current = true;
+        run.add(CLEAR_POINTS * L + (mistakes.current === 0 ? PERFECT_POINTS * L : 0));
         timers.after(1200, () => {
+          setBanked(run.bank());
+          setPerfect(mistakes.current === 0);
           saveLevel('memory', levelRef.current + 1);
           goPhase('win');
         });
@@ -159,7 +181,8 @@ export default function MemoryGame() {
         timers.after(380, () => praise.show('找到了！'));
       }
     } else {
-      // 不一樣：多留一點時間看清楚，再輕輕蓋回去
+      // 不一樣：多留一點時間看清楚，再輕輕蓋回去（不扣分）
+      mistakes.current += 1;
       const timer = timers.after(1400, () => {
         for (const x of [a.id, card.id]) shake(cardEls.current.get(x)?.firstElementChild);
         timers.after(260, () => {
@@ -210,6 +233,9 @@ export default function MemoryGame() {
             找到 <b key={found}>{found}</b> / {pairs} 對
           </span>
         </div>
+        <span className="hud-card total-card">
+          總分 <b key={run.total}>{run.total.toLocaleString()}</b>
+        </span>
         <button className={`pill ${s.peek}`} type="button" onClick={peek} disabled={phase !== 'play' || peeking}>
           <EyeIcon />
           <span>偷看一下</span>
@@ -284,6 +310,8 @@ export default function MemoryGame() {
       <WinSheet
         open={phase === 'win'}
         level={level}
+        message={perfect ? '一次都沒翻錯，記性真好！' : undefined}
+        points={banked}
         note={next > pairsFor(level) ? `下一關有 ${next * 2} 張牌` : '下一關的水果會換一換'}
         onNext={() => start(level + 1)}
         onRestart={() => start(1)}

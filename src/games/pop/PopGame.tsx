@@ -11,15 +11,18 @@ import { useElementSize, useTimers } from '@/lib/hooks';
 import { useGoHome } from '@/lib/nav';
 import { CANDY } from '@/lib/palette';
 import { buzz, sound } from '@/lib/sound';
-import { read, saveLevel, useSavedLevel, write } from '@/lib/store';
+import { useRunScore, type Banked } from '@/lib/score';
+import { saveLevel, useSavedLevel } from '@/lib/store';
 import { toast } from '@/lib/toast';
 import { boardFor, cellSize, createSolvableBoard, findGroup, hasMoves, levelConfig, removeAndSettle, solutionHint, toGrid, transpose, type Board, type Tile } from './logic';
 import PopArt from './PopArt';
 import s from './pop.module.css';
 
 // 一次消越多，分數越多（消 n 顆得 n × n × 5 分）；全部消光再加獎勵
-const pointsFor = (n: number) => n * n * 5;
-const CLEAR_BONUS = 1000;
+// 分數會一關一關累積，所以第一關給分保守、越後面越值錢：
+// 每顆 10 × 關卡；一次消越多，每顆加成越多（消 2 顆沒加成，每多 1 顆多 10%）；全部消光再加 100 × 關卡
+const pointsFor = (n: number, level: number) => Math.round(n * 10 * level * (1 + 0.1 * Math.max(0, n - 2)));
+const clearBonus = (level: number) => 100 * level;
 
 function praiseFor(n: number) {
   if (n >= 16) return '大豐收！';
@@ -44,8 +47,8 @@ export default function PopGame() {
   const [level, setLevel] = useState(1);
   const [board, setBoard] = useState<Board | null>(null);
   const [tiles, setTiles] = useState<Tile[]>([]);
-  const [score, setScore] = useState(0);
-  const [record, setRecord] = useState(false);
+  const run = useRunScore('pop');
+  const [banked, setBanked] = useState<Banked | null>(null);
 
   // 給事件處理用的最新狀態
   const tilesRef = useRef<Tile[]>([]);
@@ -54,7 +57,6 @@ export default function PopGame() {
   const phaseRef = useRef<Phase>('intro');
   const finishing = useRef(false);
   const misses = useRef(0);
-  const scoreRef = useRef(0);
   const nextId = useRef(1);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tileEls = useRef(new Map<number, HTMLDivElement>());
@@ -151,8 +153,8 @@ export default function PopGame() {
     setLevel(n);
     saveLevel('pop', n);
     misses.current = 0;
-    scoreRef.current = 0;
-    setScore(0);
+    run.begin(n);
+    setBanked(null);
     warned.current = false;
     finishing.current = false;
     entered.current = false;
@@ -236,9 +238,8 @@ export default function PopGame() {
       cy += (r.top + r.height / 2) / group.length;
       if (i < 16) burst(r.left + r.width / 2, r.top + r.height / 2, color, 5, Math.min(sx, sy) * 0.8);
     });
-    const gained = pointsFor(group.length);
-    scoreRef.current += gained;
-    setScore(scoreRef.current);
+    const gained = pointsFor(group.length, levelRef.current);
+    run.add(gained);
     floatText(cx, cy, `+${gained}`, CANDY[hit.color].lo);
     sound.pop(group.length);
     buzz(group.length >= 10 ? 28 : 12);
@@ -256,14 +257,11 @@ export default function PopGame() {
     if (!rest.length) {
       finishing.current = true;
       timers.cancel(hintTimer.current);
-      scoreRef.current += CLEAR_BONUS;
-      setScore(scoreRef.current);
-      timers.after(450, () => praise.show(`全部消光 +${CLEAR_BONUS}`));
+      const bonus = clearBonus(levelRef.current);
+      run.add(bonus);
+      timers.after(450, () => praise.show(`全部消光 +${bonus}`));
       timers.after(1500, () => {
-        const key = `pop.best.${levelRef.current}`;
-        const best = read(key, 0);
-        setRecord(scoreRef.current > best);
-        if (scoreRef.current > best) write(key, scoreRef.current);
+        setBanked(run.bank());
         saveLevel('pop', levelRef.current + 1);
         goPhase('win');
       });
@@ -303,8 +301,8 @@ export default function PopGame() {
             還剩 <b key={left}>{left}</b>
             <span>顆</span>
           </Meter>
-          <span className={`hud-card ${s.score}`} aria-label={`分數 ${score}`}>
-            分數 <b key={score}>{score.toLocaleString()}</b>
+          <span className={`hud-card ${s.score}`} aria-label={`總分 ${run.total}`}>
+            總分 <b key={run.total}>{run.total.toLocaleString()}</b>
           </span>
           <button className="pill" type="button" onClick={() => start(level, true)} disabled={phase !== 'play'} aria-label="這一盤重來">
             <RestartIcon />
@@ -372,7 +370,7 @@ export default function PopGame() {
         <div className="sheet__body">
           <h2 className="sheet__title">差一點點！</h2>
           <p className="sheet__text">
-            還剩 <b>{left}</b> 顆消不掉，目前 {score.toLocaleString()} 分。
+            還剩 <b>{left}</b> 顆消不掉。
             <br />
             換個順序再試一次，一定可以全部消完！
           </p>
@@ -406,11 +404,8 @@ export default function PopGame() {
       <WinSheet
         open={phase === 'win'}
         level={level}
-        message={
-          <>
-            全部消光光！得到 <b>{score.toLocaleString()}</b> 分{record && <span className={s.record}>新紀錄</span>}
-          </>
-        }
+        message="全部消光光，太厲害了！"
+        points={banked}
         note={note}
         onNext={() => start(level + 1)}
         onRestart={() => start(1)}

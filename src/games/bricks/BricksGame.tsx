@@ -19,22 +19,24 @@ import s from './bricks.module.css';
 // 時間越久，降得越快、缺口越多。磚塊碰到底就結束。
 
 /* 想調難度改這裡：每過 STAGE_SECONDS 秒速度升一級；speed 每秒降幾排；gaps 每排缺幾格（最少～最多） */
-const STAGE_SECONDS = 25;
+const STAGE_SECONDS = 18;
 function stageConfig(stage: number, cols: number) {
-  const speed = Math.min(0.55, 0.11 + (stage - 1) * 0.035);
+  const speed = Math.min(0.9, 0.2 + (stage - 1) * 0.06);
   const table: [number, number][] = [
-    [1, 1],
     [1, 2],
     [2, 2],
     [2, 3],
     [2, 3],
     [3, 4],
+    [3, 5],
   ];
   const [lo, hi] = table[Math.min(table.length - 1, stage - 1)];
   const cap = Math.max(1, cols - 2);
   return { speed, gaps: [Math.min(lo, cap), Math.min(hi + Math.max(0, stage - 6), cap)] as [number, number] };
 }
-const START_ROWS = 3;
+const START_ROWS = 4;
+/** 這麼多秒內接著再消一排，就算「連消」，分數加倍 */
+const COMBO_WINDOW = 2.5;
 
 type Cell = { id: number; color: number; shot?: number };
 type Row = { id: number; color: number; cells: (Cell | null)[] };
@@ -77,7 +79,7 @@ export default function BricksGame() {
   const shownY = useRef(new Map<number, number>());
   const rowEls = useRef(new Map<number, HTMLDivElement>());
   const elapsed = useRef(0);
-  const stats = useRef({ score: 0, lines: 0 });
+  const stats = useRef({ score: 0, lines: 0, combo: 0, lastClear: -99 });
   const nextId = useRef(1);
   const colorTurn = useRef(0);
   const misses = useRef(0);
@@ -110,7 +112,7 @@ export default function BricksGame() {
     boardRef.current = b;
     setBoard(b);
     elapsed.current = 0;
-    stats.current = { score: 0, lines: 0 };
+    stats.current = { score: 0, lines: 0, combo: 0, lastClear: -99 };
     setScore(0);
     setLines(0);
     setLevel(1);
@@ -206,7 +208,10 @@ export default function BricksGame() {
     bottom.current -= full.length;
 
     const stageNo = 1 + Math.floor(elapsed.current / STAGE_SECONDS);
-    const gained = 10 * stageNo * full.length * (full.length > 1 ? 2 : 1);
+    const st = stats.current;
+    st.combo = elapsed.current - st.lastClear <= COMBO_WINDOW ? Math.min(5, st.combo + 1) : 1;
+    st.lastClear = elapsed.current;
+    const gained = 10 * stageNo * full.length * (full.length > 1 ? 2 : 1) * st.combo;
     stats.current.score += gained;
     stats.current.lines += full.length;
     setScore(stats.current.score);
@@ -222,6 +227,7 @@ export default function BricksGame() {
     sound.clear(full.length);
     buzz(full.length > 1 ? [20, 30, 20] : 20);
     if (full.length > 1) praise.show(`一次 ${full.length} 排！`);
+    else if (st.combo > 1) praise.show(`連消 ×${st.combo}！`);
   };
 
   // 點一欄：磚塊從下面射上去，停在第一塊磚的正下方（就是缺口）
@@ -347,9 +353,9 @@ export default function BricksGame() {
         art={<BricksArt />}
         text={
           <>
-            磚牆會慢慢往下降。點 <b>最下面那排的缺口</b>，
+            磚牆會一直往下降，越來越快！點 <b>最下面那排的缺口</b>，
             <br />
-            磚塊就會補上去，補滿一整排就消掉！
+            補滿一整排就消掉，接著馬上再消就是「連消」！
           </>
         }
         say="磚牆會慢慢往下降，而且越來越快、缺口越來越多。點最下面那一排有缺口的地方，磚塊就會從下面補上去，補滿一整排就會消掉。不要讓磚塊碰到底喔。"
